@@ -4,6 +4,11 @@ This repository contains a local, reproducible implementation of the thesis-styl
 
 ---
 
+**Portfolio focus:** Kubernetes security automation, Python controller development, RBAC, and Otterize ClientIntents.  
+**Project documentation:** [Zero Trust Kubernetes report](docs/ZTA.pdf)
+
+> **Implementation scope:** The source files in this repository implement Otterize-based runtime port-denial automation. Consult the report for wider research context; not every proposed extension is represented in these scripts.
+
 ## Contents
 
 - `Dockerfile` — Image build for the Python controller.
@@ -71,33 +76,17 @@ kubectl auth can-i patch deployments --as system:serviceaccount:otterize-automat
 
 ## Path A — Single-Run Job (process current intents once)
 
-Use this when you want the controller to **run once**, consume any existing `ClientIntent`, patch the target deployment, and exit.
-The repo provides a wrapper script that **builds the image**, **loads it into the Kind cluster**, **applies the ClientIntent**, **runs the Job**, and **tails logs**.
+Run the Job wrapper to build the controller image, load it into Kind, apply the ClientIntent, and execute the one-time controller.
 
 ```bash
-# 1) Ensure baseline + RBAC are applied (see above)
-
-# 2) Assign Execute permissions for the script
-chmod +x deploy_continuous_watch_controller.sh
-
-# 3) Run the scrript
-./deploy_continuous_watch_controller.sh
-
-
-# 4) Apply or update the ClientIntent at any time:
-
-kubectl apply -f clientintent.yaml
-
+# Ensure the demo workloads and controller RBAC above are configured.
+chmod +x deploy_single_run_controller.sh
+./deploy_single_run_controller.sh
 ```
 
-What it does:
+The script builds `deny-auto:local`, loads it into the `otterize-local` Kind cluster, applies `clientintent.yaml`, runs `job-once.yaml`, waits for completion, and displays logs.
 
-- Builds `deny-auto:local` from `Dockerfile` and `requirements.txt`.
-- Loads image into Kind: `kind load docker-image deny-auto:local --name otterize-local`.
-- Applies `clientintent.yaml`.
-- Runs `job-once.yaml` and streams logs of the Job.
-
-**Verify effect** (port 80 removed if annotated so):
+**Inspect the outcome:**
 
 ```bash
 kubectl get deployment server -n otterize-auto -o yaml | grep -A6 "ports:"
@@ -105,7 +94,7 @@ CLIENT_POD=$(kubectl get pod -n otterize-auto -l app=client -o jsonpath='{.items
 kubectl exec -n otterize-auto "$CLIENT_POD" -- sh -c 'curl -v --max-time 3 server:80 || true'
 ```
 
-Expect `curl` failures on the denied port; server logs and deployment YAML reflect the patch.
+Record both the Deployment configuration and the connectivity result. A failed request by itself does not establish why connectivity failed.
 
 ---
 
@@ -199,6 +188,10 @@ The setup is fully reproducible and suitable for academic demonstration or lab u
 ```
 
 ---
+
+### Academic report and evidence
+
+[Read the project report (PDF)](docs/ZTA.pdf). The repository documents the local port-denial implementation; additional research extensions in the report should not be assumed to exist in this source tree.
 
 ### Acknowledgement
 
